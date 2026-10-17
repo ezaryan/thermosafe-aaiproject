@@ -8,14 +8,48 @@ export const Header: React.FC = () => {
   const [search, setSearch] = React.useState(selectedLocation.name);
   const [locationStatus, setLocationStatus] = React.useState('');
   const [isLocating, setIsLocating] = React.useState(false);
+  const [isSearching, setIsSearching] = React.useState(false);
 
-  const handleSearch = (e: React.FormEvent) => {
+  React.useEffect(() => {
+    setSearch(selectedLocation.name);
+  }, [selectedLocation.name]);
+
+  const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
+    const query = search.trim();
+    if (!query) {
+      setLocationStatus('Enter a city name to search.');
+      return;
+    }
+
     setLocationStatus('');
-    if (search.toLowerCase() === 'mumbai') {
-      setLocation({ lat: 19.0760, lon: 72.8777, name: 'Mumbai' });
-    } else {
-      setLocation({ lat: 28.6139, lon: 77.2090, name: search });
+    setIsSearching(true);
+    try {
+      const params = new URLSearchParams({
+        name: query,
+        count: '1',
+        language: 'en',
+        format: 'json',
+        countryCode: 'IN',
+      });
+      const response = await fetch(`https://geocoding-api.open-meteo.com/v1/search?${params}`);
+      if (!response.ok) {
+        throw new Error(`Location search failed (${response.status}).`);
+      }
+
+      const data: { results?: { name: string; latitude: number; longitude: number }[] } = await response.json();
+      const match = data.results?.[0];
+      if (!match) {
+        setLocationStatus(`No Indian city found for "${query}". Check the spelling and try again.`);
+        return;
+      }
+
+      setLocation({ lat: match.latitude, lon: match.longitude, name: match.name });
+    } catch (error) {
+      console.error('Could not search for location.', error);
+      setLocationStatus('Could not search for that location. Check your connection and try again.');
+    } finally {
+      setIsSearching(false);
     }
   };
 
@@ -57,6 +91,7 @@ export const Header: React.FC = () => {
             onChange={(e) => setSearch(e.target.value)}
             className="w-full bg-dark-700 border border-dark-600 text-white rounded-full py-2 pl-10 pr-4 focus:outline-none focus:border-accent transition-colors"
             placeholder="Search city..."
+            disabled={isSearching}
           />
           <Search className="absolute left-3 top-2.5 w-5 h-5 text-gray-400" />
         </form>

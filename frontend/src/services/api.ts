@@ -65,10 +65,37 @@ const withDemoFallback = async <T>(apiCall: () => Promise<T>, fallback: T): Prom
 };
 
 export const apiService = {
-  getWeather: (lat: number, lon: number): Promise<WeatherData> => withDemoFallback(
-    () => api.get<ApiWeather>('/weather', { params: { lat, lon } }).then(r => toWeatherData(r.data)),
-    demoData.demoWeather,
-  ),
+  getWeather: async (lat: number, lon: number): Promise<WeatherData> => {
+    try {
+      const response = await api.get<ApiWeather>('/weather', { params: { lat, lon } });
+      return toWeatherData(response.data);
+    } catch (error) {
+      console.warn('Backend weather request failed; fetching current weather directly.', error);
+      const response = await axios.get<{
+        current: {
+          temperature_2m: number;
+          relative_humidity_2m: number;
+          wind_speed_10m: number;
+          direct_radiation: number;
+          time: string;
+        };
+      }>('https://api.open-meteo.com/v1/forecast', {
+        params: {
+          latitude: lat,
+          longitude: lon,
+          current: 'temperature_2m,relative_humidity_2m,wind_speed_10m,direct_radiation',
+          timezone: 'auto',
+        },
+      });
+      return toWeatherData({
+        temp: response.data.current.temperature_2m,
+        humidity: response.data.current.relative_humidity_2m,
+        wind_speed: response.data.current.wind_speed_10m,
+        solar_radiation: response.data.current.direct_radiation,
+        timestamp: response.data.current.time,
+      });
+    }
+  },
   getThermalStress: (lat: number, lon: number): Promise<ThermalStressData> => withDemoFallback(
     () => api.get<ApiThermalStress>('/thermal-stress', { params: { lat, lon } }).then(r => toThermalStressData(r.data)),
     demoData.demoThermal,
