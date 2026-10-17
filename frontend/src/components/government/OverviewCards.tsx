@@ -1,5 +1,5 @@
 import React from 'react';
-import { Users, MapPin, AlertTriangle, Activity } from 'lucide-react';
+import { MapPin, AlertTriangle, Activity, Building2 } from 'lucide-react';
 import { GovernmentDashboard } from '../../types';
 
 interface Props {
@@ -11,7 +11,7 @@ export const OverviewCards: React.FC<Props> = ({ data }) => {
     { title: 'States Affected', value: data.statesAffected, icon: MapPin, color: 'text-blue-500', bg: 'bg-blue-500/10' },
     { title: 'High-Risk Locations', value: data.highRiskLocations, icon: Activity, color: 'text-orange-500', bg: 'bg-orange-500/10' },
     { title: 'Active Alerts', value: data.activeAlerts, icon: AlertTriangle, color: 'text-red-500', bg: 'bg-red-500/10' },
-    { title: 'Affected Population', value: (data.affectedPopulation / 1000000).toFixed(1) + 'M', icon: Users, color: 'text-purple-500', bg: 'bg-purple-500/10' },
+    { title: 'Cities Monitored', value: data.citiesMonitored, icon: Building2, color: 'text-purple-500', bg: 'bg-purple-500/10' },
   ];
 
   return (

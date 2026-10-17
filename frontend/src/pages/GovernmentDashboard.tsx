@@ -8,10 +8,14 @@ import { StateRiskBar } from '../components/charts/StateRiskBar';
 import { VulnerabilityRadar } from '../components/charts/VulnerabilityRadar';
 
 export const GovernmentDashboard: React.FC = () => {
-  const { data, isLoading } = useGovernmentDashboard();
+  const { data, isLoading, isFetching } = useGovernmentDashboard();
 
-  if (isLoading || !data) {
+  if (isLoading) {
     return <div className="p-8 text-center text-gray-400">Loading command center...</div>;
+  }
+
+  if (!data) {
+    return <div className="p-8 text-center text-red-400">Could not load live location monitoring data. Check your connection and try again.</div>;
   }
 
   const demoVuln = {
@@ -28,7 +32,15 @@ export const GovernmentDashboard: React.FC = () => {
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-3xl font-bold text-white">Government Command Center</h1>
-          <p className="text-gray-400 mt-1">National Heat Risk Overview</p>
+          <p className="text-gray-400 mt-1">
+            National Heat Risk Overview
+            <span className="mx-2 text-gray-600">·</span>
+            <span className={isFetching ? 'text-yellow-400' : 'text-emerald-400'}>
+              {isFetching ? 'Refreshing live values…' : 'Live values'}
+            </span>
+            <span className="mx-2 text-gray-600">·</span>
+            Updated {new Date(data.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </p>
         </div>
         <button className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg font-medium transition-colors shadow-[0_0_15px_rgba(220,38,38,0.5)]">
           Broadcast Emergency Alert

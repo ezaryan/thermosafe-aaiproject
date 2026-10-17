@@ -63,7 +63,8 @@ export const demoGovernmentDashboard: GovernmentDashboard = {
   statesAffected: 5,
   highRiskLocations: 12,
   activeAlerts: 8,
-  affectedPopulation: 25000000,
+  citiesMonitored: 1,
+  updatedAt: new Date().toISOString(),
   cities: [
     { id: '1', name: 'Delhi', lat: 28.6139, lon: 77.2090, state: 'Delhi', weather: demoWeather, thermal: demoThermal, risk: demoRisk, alerts: demoAlerts }
   ]

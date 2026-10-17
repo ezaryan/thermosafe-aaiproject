@@ -41,4 +41,8 @@ export const useActivateScenario = () => {
   });
 };
 
-export const useGovernmentDashboard = () => useQuery({ queryKey: ['govDashboard'], queryFn: apiService.getGovernmentDashboard });
+export const useGovernmentDashboard = () => useQuery({
+  queryKey: ['govDashboard'],
+  queryFn: apiService.getGovernmentDashboard,
+  refetchInterval: 5 * 60 * 1000,
+});

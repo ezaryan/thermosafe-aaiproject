@@ -79,7 +79,8 @@ export interface GovernmentDashboard {
   statesAffected: number;
   highRiskLocations: number;
   activeAlerts: number;
-  affectedPopulation: number;
+  citiesMonitored: number;
+  updatedAt: string;
   cities: CityData[];
 }
 

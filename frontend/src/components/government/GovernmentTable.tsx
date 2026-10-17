@@ -8,11 +8,23 @@ interface Props {
 }
 
 export const GovernmentTable: React.FC<Props> = ({ cities }) => {
+  const [filter, setFilter] = React.useState('');
+  const filteredCities = cities.filter((city) =>
+    `${city.name} ${city.state}`.toLowerCase().includes(filter.trim().toLowerCase()),
+  );
+
   return (
     <div className="glass-card overflow-hidden">
       <div className="p-4 border-b border-dark-600 bg-dark-800/50 flex justify-between items-center">
         <h3 className="text-lg font-medium text-white">Location Monitoring</h3>
-        <input type="text" placeholder="Filter locations..." className="bg-dark-700 border border-dark-600 rounded px-3 py-1 text-sm text-white focus:outline-none focus:border-accent" />
+        <input
+          type="text"
+          value={filter}
+          onChange={(event) => setFilter(event.target.value)}
+          placeholder="Filter locations..."
+          aria-label="Filter monitored locations"
+          className="bg-dark-700 border border-dark-600 rounded px-3 py-1 text-sm text-white focus:outline-none focus:border-accent"
+        />
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm text-left text-gray-300">
@@ -28,7 +40,7 @@ export const GovernmentTable: React.FC<Props> = ({ cities }) => {
             </tr>
           </thead>
           <tbody>
-            {cities.map((city) => (
+            {filteredCities.map((city) => (
               <tr key={city.id} className="border-b border-dark-600 hover:bg-dark-700/50 transition-colors">
                 <td className="px-6 py-4 font-medium text-white">
                   {city.name}, {city.state}
@@ -56,6 +68,11 @@ export const GovernmentTable: React.FC<Props> = ({ cities }) => {
                 </td>
               </tr>
             ))}
+            {filteredCities.length === 0 && (
+              <tr>
+                <td className="px-6 py-6 text-center text-gray-400" colSpan={7}>No monitored locations match your filter.</td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

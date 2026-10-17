@@ -1,6 +1,7 @@
 import axios from 'axios';
 import * as demoData from '../data/demoData';
-import { WeatherData, ThermalStressData, RiskAssessment, ForecastData, VulnerabilityData, Alert, DemoScenario, GovernmentDashboard, HistoricalData, MLPrediction } from '../types';
+import { WeatherData, ThermalStressData, RiskAssessment, ForecastData, VulnerabilityData, Alert, DemoScenario, GovernmentDashboard, HistoricalData, MLPrediction, CityData } from '../types';
+import { monitoredCities } from '../data/monitoredCities';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 const api = axios.create({ baseURL: `${API_URL}/api` });
@@ -333,48 +334,92 @@ export const apiService = {
       ? api.post('/demo/reset')
       : api.post('/demo/activate', { scenario_id: id })
   ).then(r => r.data),
-  getGovernmentDashboard: (): Promise<GovernmentDashboard> => withDemoFallback(
-    () => api.get<{
-      total_states_affected: number;
-      high_risk_locations: number;
-      active_alerts: number;
-      affected_population: number;
-      cities: {
-        name: string; state: string; lat: number; lon: number; temperature: number; humidity: number;
-        wind_speed: number; solar_radiation: number; heat_index: number; wbgt: number; utci: number;
-        htss_score: number; risk_level: string; heatwave_probability: number;
-      }[];
-    }>('/dashboard/government').then(({ data }) => ({
-      statesAffected: data.total_states_affected,
-      highRiskLocations: data.high_risk_locations,
-      activeAlerts: data.active_alerts,
-      affectedPopulation: data.affected_population,
-      cities: data.cities.map((city) => ({
-        id: city.name,
-        name: city.name,
-        state: city.state,
-        lat: city.lat,
-        lon: city.lon,
-        weather: {
-          temperature: city.temperature,
-          humidity: city.humidity,
-          windSpeed: city.wind_speed,
-          solarRadiation: city.solar_radiation,
-          timestamp: new Date().toISOString(),
-        },
-        thermal: { heatIndex: city.heat_index, wbgt: city.wbgt, utci: city.utci, htss: city.htss_score },
+  getGovernmentDashboard: async (): Promise<GovernmentDashboard> => {
+    let locations: typeof monitoredCities;
+    try {
+      const { data } = await api.get<{ name: string; state: string; lat: number; lon: number }[]>('/gis/cities');
+      locations = data.length > 0
+        ? data.map(({ name, state, lat, lon }) => ({ name, state, lat, lon }))
+        : monitoredCities;
+    } catch (error) {
+      console.warn('Backend city directory unavailable; using the built-in monitored city list.', error);
+      locations = monitoredCities;
+    }
+
+    const weatherResponse = await axios.get<{
+      current: {
+        temperature_2m: number;
+        relative_humidity_2m: number;
+        wind_speed_10m: number;
+        direct_radiation: number;
+        time: string;
+      };
+    }[]>('https://api.open-meteo.com/v1/forecast', {
+      params: {
+        latitude: locations.map((location) => location.lat).join(','),
+        longitude: locations.map((location) => location.lon).join(','),
+        current: 'temperature_2m,relative_humidity_2m,wind_speed_10m,direct_radiation',
+        timezone: 'auto',
+      },
+    });
+
+    if (weatherResponse.data.length !== locations.length) {
+      throw new Error(`Live weather returned ${weatherResponse.data.length} locations; expected ${locations.length}.`);
+    }
+
+    const cities: CityData[] = locations.map((location, index) => {
+      const current = weatherResponse.data[index].current;
+      const weather: WeatherData = {
+        temperature: current.temperature_2m,
+        humidity: current.relative_humidity_2m,
+        windSpeed: current.wind_speed_10m,
+        solarRadiation: current.direct_radiation,
+        timestamp: current.time,
+      };
+      const thermal = calculateThermalStress(weather);
+      const level = riskLevelForScore(thermal.htss);
+      const probability = Math.min(100, Math.max(0, (weather.temperature - 37) * 8 + (weather.humidity - 40) * 0.25));
+      const alerts: Alert[] = thermal.htss > 60
+        ? [{
+            id: `live-${location.name}`,
+            title: thermal.htss > 85 ? 'Extreme Heat Danger' : 'Heat Stress Alert',
+            message: thermal.htss > 85
+              ? 'Very high thermal stress. Avoid outdoor activity and seek a cool place.'
+              : 'Elevated thermal stress. Stay hydrated and limit strenuous outdoor activity.',
+            severity: thermal.htss > 85 ? 'red' : 'orange',
+            time: new Date(current.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            actions: thermal.htss > 85
+              ? ['Stay indoors', 'Drink water', 'Check on vulnerable people']
+              : ['Stay hydrated', 'Take breaks in shade'],
+          }]
+        : [];
+
+      return {
+        id: location.name,
+        ...location,
+        weather,
+        thermal,
         risk: {
-          level: city.risk_level,
-          score: city.htss_score,
-          probability: city.heatwave_probability,
-          primaryFactors: [],
+          level,
+          score: thermal.htss,
+          probability,
+          primaryFactors: getThermalContributions(thermal),
           recommendations: [],
         },
-        alerts: [],
-      })),
-    })),
-    demoData.demoGovernmentDashboard,
-  ),
+        alerts,
+      };
+    });
+    const highRiskCities = cities.filter((city) => ['High', 'Extreme'].includes(city.risk.level));
+
+    return {
+      statesAffected: new Set(highRiskCities.map((city) => city.state)).size,
+      highRiskLocations: highRiskCities.length,
+      activeAlerts: cities.reduce((total, city) => total + city.alerts.length, 0),
+      citiesMonitored: cities.length,
+      updatedAt: new Date().toISOString(),
+      cities,
+    };
+  },
   getHistorical: async (lat: number, lon: number): Promise<HistoricalData> => {
     const { current, hourly } = await getHourlyWeather(lat, lon, true);
     const currentHour = `${current.time.slice(0, 13)}:00`;
