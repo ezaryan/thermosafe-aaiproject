@@ -10,8 +10,8 @@ export const AnalyticsPage: React.FC = () => {
   const { selectedLocation } = useAppStore();
   
   const { data, isLoading } = useQuery({
-    queryKey: ['historical', selectedLocation.name],
-    queryFn: () => apiService.getHistorical(selectedLocation.name)
+    queryKey: ['historical', selectedLocation.lat, selectedLocation.lon],
+    queryFn: () => apiService.getHistorical(selectedLocation.lat, selectedLocation.lon)
   });
 
   if (isLoading || !data) return <div className="p-8 text-center text-gray-400">Loading analytics...</div>;
@@ -19,7 +19,7 @@ export const AnalyticsPage: React.FC = () => {
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 space-y-6">
       <h1 className="text-3xl font-bold text-white mb-2">Historical Analytics: {selectedLocation.name}</h1>
-      <p className="text-gray-400 mb-8">Analyze past trends and predictive patterns.</p>
+      <p className="text-gray-400 mb-8">Hourly weather and estimated thermal stress trends for this location over the past 24 hours.</p>
       
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <RiskTrendChart data={data} />
