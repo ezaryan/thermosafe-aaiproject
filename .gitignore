@@ -13,6 +13,7 @@ build/
 # Node
 node_modules/
 dist/
+*.tsbuildinfo
 .env.local
 .env.*.local
 
